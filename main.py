@@ -40,14 +40,23 @@ def draw_pipes(pipes):
 def check_collision(pipes):
     for pipe in pipes:
         if bird_rect.colliderect(pipe):
-            # print("Collision with Pipe")
             return False
 
     if bird_rect.top <= -50 or bird_rect.bottom >= 450:
-        # print("Collision on Ground or Ceiling")
         return False
 
     return True
+
+
+def rotate_bird(bird):
+    new_bird = pygame.transform.rotozoom(bird, -bird_movement * 3, 1)
+    return new_bird
+
+
+def bird_animation():
+    new_bird = bird_frames[bird_index]
+    new_bird_rect = new_bird.get_rect(center=(50, bird_rect.centery))
+    return new_bird, new_bird_rect
 
 
 pygame.init()
@@ -66,10 +75,20 @@ bg_surface = pygame.image.load('assets/background-night.png').convert()
 base_surface = pygame.image.load('assets/base.png').convert()
 base_x_pos = 0
 
-bird_surface = pygame.image.load('assets/redbird-midflap.png').convert()
+bird_downflap = pygame.image.load(
+    'assets/redbird-downflap.png').convert_alpha()
+bird_midflap = pygame.image.load('assets/redbird-midflap.png').convert_alpha()
+bird_upflap = pygame.image.load('assets/redbird-upflap.png').convert_alpha()
+bird_frames = [bird_downflap, bird_midflap, bird_upflap]
+bird_index = 0
+bird_surface = bird_frames[bird_index]
 bird_rect = bird_surface.get_rect(center=(50, 256))
 
-pipe_surface = pipe_surface = pygame.image.load('assets/pipe-red.png')
+BIRDFLAP = pygame.USEREVENT + 1
+pygame.time.set_timer(BIRDFLAP, 200)
+
+pipe_surface = pipe_surface = pygame.image.load(
+    'assets/pipe-red.png').convert()
 pipe_list = []
 SPAWNPIPE = pygame.USEREVENT
 pygame.time.set_timer(SPAWNPIPE, 800)
@@ -84,8 +103,22 @@ while True:
             if event.key == pygame.K_SPACE and game_active:
                 bird_movement = 0
                 bird_movement -= 6
+            if event.key == pygame.K_SPACE and not game_active:
+                game_active = True
+                pipe_list.clear()
+                bird_rect.center = (50, 256)
+                bird_movement = 0
+
         if event.type == SPAWNPIPE:
             pipe_list.extend(create_pipe())
+
+        if event.type == BIRDFLAP:
+            if bird_index < 2:
+                bird_index += 1
+            else:
+                bird_index = 0
+
+            bird_surface, bird_rect = bird_animation()
 
     # background_image
     screen.blit(bg_surface, (0, 0))
@@ -93,14 +126,17 @@ while True:
     if game_active:
         # Bird
         bird_movement += gravity
+        rotated_bird = rotate_bird(bird_surface)
         bird_rect.centery += bird_movement
-        screen.blit(bird_surface, bird_rect)
-        check_collision(pipe_list)
+        screen.blit(rotated_bird, bird_rect)
+        game_active = check_collision(pipe_list)
 
         # Pipes
         pipe_list = move_pipes(pipe_list)
         pipe_list = remove_pipes(pipe_list)
         draw_pipes(pipe_list)
+    else:
+        None
 
     # Moving Floor
     base_x_pos -= 1
@@ -109,4 +145,4 @@ while True:
         base_x_pos = 0
 
     pygame.display.update()
-    clock.tick(120)
+    clock.tick(60)
